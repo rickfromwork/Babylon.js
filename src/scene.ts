@@ -4039,6 +4039,8 @@ export class Scene extends AbstractScene implements IAnimatable, IClipPlanesHold
             }
         }
 
+        this._checkForIntersections();
+
         // Before render
         this.onBeforeRenderObservable.notifyObservers(this);
 
@@ -4873,6 +4875,89 @@ export class Scene extends AbstractScene implements IAnimatable, IClipPlanesHold
                 resolve(data);
             }, onProgress, useArrayBuffer, (error) => {
                 reject(error);
+            });
+        });
+    }
+
+    private _nearInteractionListeners = new Map<number, {mesh: AbstractMesh,
+        collisionCallback: (touchInputMesh: AbstractMesh) => void,
+        collisionExitCallback: (touchInputMesh: AbstractMesh) => void}>();
+    private _touchMeshes = new Map<number, {touchMesh: AbstractMesh, targetMesh: Nullable<AbstractMesh>}>();
+
+    /** @hidden */
+    public _registerForNearInteraction(meshToCheck: AbstractMesh, collisionCallback: (touchInputMesh: AbstractMesh) => void, collisionExitCallback: (touchInputMesh: AbstractMesh) => void): void {
+        //this._nearInteractionListeners.add({mesh: meshToCheck, collisionCallback: collisionCallback, collisionExitCallback: collisionExitCallback});
+        this._nearInteractionListeners.set(meshToCheck.uniqueId, {mesh: meshToCheck, collisionCallback: collisionCallback, collisionExitCallback: collisionExitCallback});
+    }
+
+    /** @hidden */
+    public _unregisterForNearInteraction(meshToRemove: AbstractMesh): void {/*
+        this._nearInteractionListeners.forEach((interactionListener) => {
+            if (interactionListener.mesh === meshToRemove) {
+                interactionListener.collisionExitCallback(meshToRemove);
+                this._nearInteractionListeners.delete(interactionListener);
+            }
+        });
+*/
+        let target = this._nearInteractionListeners.get(meshToRemove.uniqueId);
+        if (target) {
+            this._touchMeshes.forEach((input) => {
+                if (input.targetMesh?.uniqueId == meshToRemove.uniqueId) {
+                    input.targetMesh = null;
+                    target!.collisionExitCallback(input.touchMesh);
+                }
+            });
+
+            this._nearInteractionListeners.delete(meshToRemove.uniqueId);
+        }
+    }
+
+    /** @hidden */
+    public _registerTouchInputMesh(touchMesh: AbstractMesh) {
+        //this._touchMeshes.add({touchMesh: touchMesh, targetMesh: null});
+        this._touchMeshes.set(touchMesh.uniqueId, {touchMesh: touchMesh, targetMesh: null});
+    }
+
+    /** @hidden */
+    public _unregisterTouchInputMesh(touchMesh: AbstractMesh) {/*
+        this._touchMeshes.forEach((input) => {
+            if (input.mesh === meshToRemove) {
+                input.collisionExitCallback(meshToRemove);
+                this._touchMeshes.delete(input);
+            }
+        });*/
+
+        let input = this._touchMeshes.get(touchMesh.uniqueId);
+        if (input) {
+            if (input.targetMesh) {
+                this._nearInteractionListeners.get(input.targetMesh.uniqueId)?.collisionExitCallback(input.touchMesh);
+            }
+
+            this._touchMeshes.delete(touchMesh.uniqueId);
+        }
+    }
+
+    private _checkForIntersections() {
+        this._touchMeshes.forEach((target) => {
+            // handle existing interactions
+            let prevInteraction = target.targetMesh;
+            if (prevInteraction) {
+                if (prevInteraction.intersectsMesh(target.touchMesh)) {
+                    this._nearInteractionListeners.get(prevInteraction.uniqueId)?.collisionCallback(target.touchMesh);
+                    return;
+                }
+                else {
+                    this._nearInteractionListeners.get(prevInteraction.uniqueId)?.collisionExitCallback(target.touchMesh);
+                    target.targetMesh = null;
+                }
+            }
+
+            // find any new interactions
+            this._nearInteractionListeners.forEach((interactionListener) => {
+                if (interactionListener.mesh.intersectsMesh(target.touchMesh)) {
+                    interactionListener.collisionCallback(target.touchMesh);
+                    target.targetMesh = interactionListener.mesh;
+                }
             });
         });
     }

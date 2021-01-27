@@ -86,6 +86,7 @@ export class TouchButton3D extends Button3D {
      */
     public set collisionMesh(collisionMesh: Mesh) {
         if (this._collisionMesh) {
+            this._collisionMesh.getScene()._unregisterForNearInteraction(this._collisionMesh);
             this._collisionMesh.dispose();
         }
 
@@ -98,6 +99,9 @@ export class TouchButton3D extends Button3D {
         this._collisionMesh.metadata = this;
 
         this.collidableFrontDirection = collisionMesh.forward;
+     /*   this._collisionMesh.getScene()._registerForNearInteraction(this._collisionMesh, (touchInputMesh: AbstractMesh) => {
+            this._collisionCheckForStateChange(touchInputMesh);
+        });*/
 
         this._collidableInitialized = true;
     }
@@ -338,10 +342,20 @@ export class TouchButton3D extends Button3D {
 
                 this._previousHeight.set(uniqueId, heightFromCenter);
             }
-            else if ((activeInteraction != undefined) && (activeInteraction != ButtonState.None)) {
-                this._updateButtonState(uniqueId, ButtonState.None, this._lastTouchPoint);
-                this._previousHeight.delete(uniqueId);
+            else {
+                this._removeCollidable(mesh);
             }
+        }
+    }
+
+    /** @hidden */
+    public _removeCollidable(mesh: AbstractMesh) {
+        const uniqueId = mesh.uniqueId;
+        let activeInteraction = this._activeInteractions.get(uniqueId);
+
+        if ((activeInteraction != undefined) && (activeInteraction != ButtonState.None)) {
+            this._updateButtonState(uniqueId, ButtonState.None, this._lastTouchPoint);
+            this._previousHeight.delete(uniqueId);
         }
     }
 

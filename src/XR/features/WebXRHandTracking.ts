@@ -24,6 +24,7 @@ import { Axis } from "../../Maths/math.axis";
 import { TransformNode } from "../../Meshes/transformNode";
 import { Tags } from "../../Misc/tags";
 import { Bone } from "../../Bones/bone";
+import { UtilityLayerRenderer } from "../../Rendering/UtilityLayerRenderer";
 
 declare const XRHand: XRHand;
 
@@ -96,9 +97,9 @@ export interface IWebXRHandTrackingOptions {
             left: string[];
         };
         /**
-         * The utilityLayer scene that contains the 3D UI elements. Passing this in turns on near interactions with the index finger tip
+         * The utilityLayer renderer for the 3D UI elements. Passing this in turns on near interactions with the index finger tip
          */
-        sceneForNearInteraction?: Scene;
+        utilityLayerRenderer?: UtilityLayerRenderer;
     };
 }
 
@@ -185,7 +186,8 @@ export class WebXRHand implements IDisposable {
         private _rigMapping?: string[],
         disableDefaultHandMesh?: boolean,
         private _nearInteractionMesh?: Nullable<AbstractMesh>,
-        private _leftHandedMeshes?: boolean
+        private _leftHandedMeshes?: boolean,
+        private _sceneForCollision?: Scene
     ) {
         this.handPartsDefinition = this.generateHandPartsDefinition(xrController.inputSource.hand!);
         this._scene = trackedMeshes[0].getScene();
@@ -236,6 +238,11 @@ export class WebXRHand implements IDisposable {
                 motionController.rootMesh.setEnabled(false);
             }
         });
+
+        if (this._sceneForCollision) {
+            // will this work, given the mesh is not in the same scene?
+            this._sceneForCollision._registerTouchInputMesh(this.trackedMeshes[this.xrController.inputSource.hand!.INDEX_PHALANX_TIP]);
+        }
     }
 
     /**
@@ -329,6 +336,10 @@ export class WebXRHand implements IDisposable {
      * Dispose this Hand object
      */
     public dispose() {
+        if (this._sceneForCollision) {
+            this._sceneForCollision._unregisterTouchInputMesh(this.trackedMeshes[this.xrController.inputSource.hand!.INDEX_PHALANX_TIP]);
+        }
+
         this.trackedMeshes.forEach((mesh) => mesh.dispose());
         this._nearInteractionMesh?.dispose();
         this.onHandMeshReadyObservable.clear();
@@ -588,16 +599,19 @@ export class WebXRHandTracking extends WebXRAbstractFeature {
         }
 
         let touchMesh: Nullable<AbstractMesh> = null;
-        if (this.options.jointMeshes?.sceneForNearInteraction) {
-            touchMesh = SphereBuilder.CreateSphere(`${xrController.uniqueId}-handJoint-indexCollidable`, {}, this.options.jointMeshes.sceneForNearInteraction);
+        if (this.options.jointMeshes?.utilityLayerRenderer) {
+            touchMesh = SphereBuilder.CreateSphere(`${xrController.uniqueId}-handJoint-indexCollidable`, {}, this.options.jointMeshes.utilityLayerRenderer.utilityLayerScene);
             touchMesh.isVisible = false;
             Tags.AddTagsTo(touchMesh, "touchEnabled");
+
+            // Enable collision checking on the original mesh too? It would let the main scene work...
+            Tags.AddTagsTo(trackedMeshes[hand.INDEX_PHALANX_TIP], "touchEnabled");
         }
 
         const handedness = xrController.inputSource.handedness === "right" ? "right" : "left";
         const handMesh = this.options.jointMeshes?.handMeshes && this.options.jointMeshes?.handMeshes[handedness];
         const rigMapping = this.options.jointMeshes?.rigMapping && this.options.jointMeshes?.rigMapping[handedness];
-        const webxrHand = new WebXRHand(xrController, trackedMeshes, handMesh, rigMapping, this.options.jointMeshes?.disableDefaultHandMesh, touchMesh, this.options.jointMeshes?.leftHandedSystemMeshes);
+        const webxrHand = new WebXRHand(xrController, trackedMeshes, handMesh, rigMapping, this.options.jointMeshes?.disableDefaultHandMesh, touchMesh, this.options.jointMeshes?.leftHandedSystemMeshes, this.options.jointMeshes?.utilityLayerRenderer?.utilityLayerScene);
 
         // get two new meshes
         this._hands[xrController.uniqueId] = {
