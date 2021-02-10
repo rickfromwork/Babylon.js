@@ -22,7 +22,7 @@ import { Engine } from "../../Engines/engine";
 import { Tools } from "../../Misc/tools";
 import { Axis } from "../../Maths/math.axis";
 import { TransformNode } from "../../Meshes/transformNode";
-import { Tags } from "../../Misc/tags";
+//import { Tags } from "../../Misc/tags";
 import { Bone } from "../../Bones/bone";
 import { UtilityLayerRenderer } from "../../Rendering/UtilityLayerRenderer";
 
@@ -302,7 +302,7 @@ export class WebXRHand implements IDisposable {
 
         if (this._sceneForCollision) {
             // will this work, given the mesh is not in the same scene?
-            this._sceneForCollision._registerTouchInputMesh(this.trackedMeshes[this.xrController.inputSource.hand!.INDEX_PHALANX_TIP]);
+            this._sceneForCollision._registerTouchInputMesh(this.trackedMeshes.get("index-finger-tip")!);
         }
     }
 
@@ -400,7 +400,7 @@ export class WebXRHand implements IDisposable {
      */
     public dispose() {
         if (this._sceneForCollision) {
-            this._sceneForCollision._unregisterTouchInputMesh(this.trackedMeshes[this.xrController.inputSource.hand!.INDEX_PHALANX_TIP]);
+            this._sceneForCollision._unregisterTouchInputMesh(this.trackedMeshes.get("index-finger-tip")!);
         }
 
         this.trackedMeshes.forEach((mesh) => mesh.dispose());
@@ -665,10 +665,10 @@ export class WebXRHandTracking extends WebXRAbstractFeature {
         if (this.options.jointMeshes?.utilityLayerRenderer) {
             touchMesh = SphereBuilder.CreateSphere(`${xrController.uniqueId}-handJoint-indexCollidable`, {}, this.options.jointMeshes.utilityLayerRenderer.utilityLayerScene);
             touchMesh.isVisible = false;
-            Tags.AddTagsTo(touchMesh, "touchEnabled");
+  //          Tags.AddTagsTo(touchMesh, "touchEnabled");
 
             // Enable collision checking on the original mesh too? It would let the main scene work...
-            Tags.AddTagsTo(trackedMeshes[hand.INDEX_PHALANX_TIP], "touchEnabled");
+   //         Tags.AddTagsTo(trackedMeshes.get("index-finger-tip")!, "touchEnabled");
         }
 
         const handedness = xrController.inputSource.handedness === "right" ? "right" : "left";
