@@ -2134,7 +2134,9 @@ export class Control {
 
         var text = document.createElement("span");
         text.innerHTML = "Hg";
-        text.setAttribute('style', `font: ${font} !important`);
+        //text.setAttribute('style', `font: ${font} !important`);
+        // REVERT BEFORE CHECKIN
+        text.style.font = font;
 
         var block = document.createElement("div");
         block.style.display = "inline-block";
