@@ -155,7 +155,7 @@ export class GUI3DManager implements IDisposable {
 
         return true;
     }
-
+/*
     private _processTouchControls = () => {
         let utilityLayerScene = this._utilityLayer ? this._utilityLayer.utilityLayerScene : null;
         if (utilityLayerScene) {
@@ -168,7 +168,7 @@ export class GUI3DManager implements IDisposable {
             });
         }
     }
-
+*/
     /**
      * Gets the root container
      */
@@ -192,7 +192,7 @@ export class GUI3DManager implements IDisposable {
      */
     public addControl(control: Control3D): GUI3DManager {
         this._rootContainer.addControl(control);
-
+/*
         let utilityLayerScene = this._utilityLayer ? this._utilityLayer.utilityLayerScene : null;
         if (utilityLayerScene && (control instanceof TouchButton3D)) {
             if (this._touchableButtons.size == 0) {
@@ -201,7 +201,7 @@ export class GUI3DManager implements IDisposable {
 
             this._touchableButtons.add(control as TouchButton3D);
         }
-
+*/
         return this;
     }
 
@@ -212,7 +212,7 @@ export class GUI3DManager implements IDisposable {
      */
     public removeControl(control: Control3D): GUI3DManager {
         this._rootContainer.removeControl(control);
-
+/*
         let utilityLayerScene = this._utilityLayer ? this._utilityLayer.utilityLayerScene : null;
         if (utilityLayerScene && (control instanceof TouchButton3D)) {
             this._touchableButtons.delete(control);
@@ -221,7 +221,7 @@ export class GUI3DManager implements IDisposable {
                 utilityLayerScene.unregisterBeforeRender(this._processTouchControls);
             }
         }
-
+*/
         return this;
     }
 
@@ -260,11 +260,11 @@ export class GUI3DManager implements IDisposable {
 
         let utilityLayerScene = this._utilityLayer ? this._utilityLayer.utilityLayerScene : null;
 
-        if (utilityLayerScene) {
+        if (utilityLayerScene) {/*
             if (this._touchableButtons.size != 0) {
                 utilityLayerScene.unregisterBeforeRender(this._processTouchControls);
             }
-
+*/
             if (this._pointerObserver) {
                 utilityLayerScene.onPointerObservable.remove(this._pointerObserver);
                 this._pointerObserver = null;
