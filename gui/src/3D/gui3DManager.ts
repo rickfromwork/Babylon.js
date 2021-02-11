@@ -11,7 +11,7 @@ import { IDisposable, Scene } from "babylonjs/scene";
 
 import { Container3D } from "./controls/container3D";
 import { Control3D } from "./controls/control3D";
-import { TouchButton3D } from "./controls/touchButton3D";
+//import { TouchButton3D } from "./controls/touchButton3D";
 
 /**
  * Class used to manage 3D user interface
@@ -24,7 +24,7 @@ export class GUI3DManager implements IDisposable {
     private _rootContainer: Container3D;
     private _pointerObserver: Nullable<Observer<PointerInfo>>;
     private _pointerOutObserver: Nullable<Observer<number>>;
-    private _touchableButtons = new Set<TouchButton3D>();
+//    private _touchableButtons = new Set<TouchButton3D>();
     /** @hidden */
     public _lastPickedControl: Control3D;
     /** @hidden */

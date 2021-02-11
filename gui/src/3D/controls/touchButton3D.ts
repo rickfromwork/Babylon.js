@@ -96,13 +96,17 @@ export class TouchButton3D extends Button3D {
         }
 
         this._collisionMesh = collisionMesh;
-        this._collisionMesh.metadata = this;
+        this._injectGUI3DMetadata(this._collisionMesh).control = this;
+        //this._collisionMesh.metadata = this;
 
         this.collidableFrontDirection = collisionMesh.forward;
         this._collisionMesh.getScene()._registerForNearInteraction(this._collisionMesh,
             (touchInputMesh: AbstractMesh) => {
                 this._collisionCheckForStateChange(touchInputMesh);
-            }, this._removeCollidable);
+            },
+            (touchInputMesh: AbstractMesh) => {
+                this._removeCollidable(touchInputMesh);
+            });
 
         this._collidableInitialized = true;
     }
