@@ -101,6 +101,15 @@ export interface SceneOptions {
     virtual?: boolean;
 }
 
+/** interface for passing callbacks for near interaction */
+export interface touchCallbackOptions {
+    collisionCallback?: (touchInputMesh: AbstractMesh) => void;
+    collisionExitCallback?: (touchInputMesh: AbstractMesh) => void;
+    grabStartCallback?: (touchInputMesh: AbstractMesh) => void;
+    grabUpdateCallback?: (touchInputMesh: AbstractMesh) => void;
+    grabEndCallback?: (touchInputMesh: AbstractMesh) => void;
+};
+
 /**
  * Represents a scene to be rendered by the engine.
  * @see https://doc.babylonjs.com/features/scene
@@ -4881,30 +4890,33 @@ export class Scene extends AbstractScene implements IAnimatable, IClipPlanesHold
 
     private _nearInteractionListeners = new Map<number, {mesh: AbstractMesh,
         collisionCallback: (touchInputMesh: AbstractMesh) => void,
-        collisionExitCallback: (touchInputMesh: AbstractMesh) => void}>();
-    private _touchMeshes = new Map<number, {touchMesh: AbstractMesh, targetMesh: Nullable<AbstractMesh>}>();
+        collisionExitCallback: (touchInputMesh: AbstractMesh) => void,
+        grabStartCallback: (touchInputMesh: AbstractMesh) => void,
+        grabUpdateCallback: (touchInputMesh: AbstractMesh) => void,
+        grabEndCallback: (touchInputMesh: AbstractMesh) => void}>();
+
+    private _touchMeshes = new Map<number, {touchMesh1: AbstractMesh, touchMesh2?: AbstractMesh, isTouching: boolean, isGrabbing: boolean, targetMesh: Nullable<AbstractMesh>}>();
 
     /** @hidden */
-    public _registerForNearInteraction(meshToCheck: AbstractMesh, collisionCallback: (touchInputMesh: AbstractMesh) => void, collisionExitCallback: (touchInputMesh: AbstractMesh) => void): void {
-        //this._nearInteractionListeners.add({mesh: meshToCheck, collisionCallback: collisionCallback, collisionExitCallback: collisionExitCallback});
-        this._nearInteractionListeners.set(meshToCheck.uniqueId, {mesh: meshToCheck, collisionCallback: collisionCallback, collisionExitCallback: collisionExitCallback});
+    public _registerForNearInteraction(meshToCheck: AbstractMesh, callbacks: touchCallbackOptions): void {
+        this._nearInteractionListeners.set(meshToCheck.uniqueId, {
+                mesh: meshToCheck,
+                collisionCallback: callbacks.collisionCallback? callbacks.collisionCallback : (touchInputMesh) => {},
+                collisionExitCallback: callbacks.collisionExitCallback? callbacks.collisionExitCallback : (touchInputMesh) => {},
+                grabStartCallback: callbacks.grabStartCallback? callbacks.grabStartCallback : (touchInputMesh) => {},
+                grabUpdateCallback: callbacks.grabUpdateCallback? callbacks.grabUpdateCallback : (touchInputMesh) => {},
+                grabEndCallback: callbacks.grabEndCallback? callbacks.grabEndCallback : (touchInputMesh) => {}
+            });
     }
 
     /** @hidden */
-    public _unregisterForNearInteraction(meshToRemove: AbstractMesh): void {/*
-        this._nearInteractionListeners.forEach((interactionListener) => {
-            if (interactionListener.mesh === meshToRemove) {
-                interactionListener.collisionExitCallback(meshToRemove);
-                this._nearInteractionListeners.delete(interactionListener);
-            }
-        });
-*/
+    public _unregisterForNearInteraction(meshToRemove: AbstractMesh): void {
         let target = this._nearInteractionListeners.get(meshToRemove.uniqueId);
         if (target) {
             this._touchMeshes.forEach((input) => {
                 if (input.targetMesh?.uniqueId == meshToRemove.uniqueId) {
                     input.targetMesh = null;
-                    target!.collisionExitCallback(input.touchMesh);
+                    target!.collisionExitCallback(input.touchMesh1);
                 }
             });
 
@@ -4913,27 +4925,19 @@ export class Scene extends AbstractScene implements IAnimatable, IClipPlanesHold
     }
 
     /** @hidden */
-    public _registerTouchInputMesh(touchMesh: AbstractMesh) {
-        //this._touchMeshes.add({touchMesh: touchMesh, targetMesh: null});
-        this._touchMeshes.set(touchMesh.uniqueId, {touchMesh: touchMesh, targetMesh: null});
+    public _registerTouchInputMesh(touchMesh1: AbstractMesh, touchMesh2?: AbstractMesh) {
+        this._touchMeshes.set(touchMesh1.uniqueId, {touchMesh1: touchMesh1, touchMesh2: touchMesh2, isTouching: false, isGrabbing: false, targetMesh: null});
     }
 
     /** @hidden */
-    public _unregisterTouchInputMesh(touchMesh: AbstractMesh) {/*
-        this._touchMeshes.forEach((input) => {
-            if (input.mesh === meshToRemove) {
-                input.collisionExitCallback(meshToRemove);
-                this._touchMeshes.delete(input);
-            }
-        });*/
-
-        let input = this._touchMeshes.get(touchMesh.uniqueId);
+    public _unregisterTouchInputMesh(touchMesh1: AbstractMesh) {
+        let input = this._touchMeshes.get(touchMesh1.uniqueId);
         if (input) {
             if (input.targetMesh) {
-                this._nearInteractionListeners.get(input.targetMesh.uniqueId)?.collisionExitCallback(input.touchMesh);
+                this._nearInteractionListeners.get(input.targetMesh.uniqueId)?.collisionExitCallback(input.touchMesh1);
             }
 
-            this._touchMeshes.delete(touchMesh.uniqueId);
+            this._touchMeshes.delete(touchMesh1.uniqueId);
         }
     }
 
@@ -4941,24 +4945,53 @@ export class Scene extends AbstractScene implements IAnimatable, IClipPlanesHold
         this._touchMeshes.forEach((target) => {
             // handle existing interactions
             let prevInteraction = target.targetMesh;
+            let nowGrabbing = target.touchMesh2? target.touchMesh1.intersectsMesh(target.touchMesh2) : false;
+
             if (prevInteraction) {
-                if (prevInteraction.intersectsMesh(target.touchMesh)) {
-                    this._nearInteractionListeners.get(prevInteraction.uniqueId)?.collisionCallback(target.touchMesh);
-                    return;
+                if (target.isGrabbing) {
+                    if (nowGrabbing) {
+                        this._nearInteractionListeners.get(prevInteraction.uniqueId)?.grabUpdateCallback(target.touchMesh1);
+                    }
+                    else {
+                        this._nearInteractionListeners.get(prevInteraction.uniqueId)?.grabEndCallback(target.touchMesh1);
+                        target.isGrabbing = false;
+                    }
                 }
-                else {
-                    this._nearInteractionListeners.get(prevInteraction.uniqueId)?.collisionExitCallback(target.touchMesh);
-                    target.targetMesh = null;
+
+                if (target.isTouching) {
+                    if (prevInteraction.intersectsMesh(target.touchMesh1)) {
+                        this._nearInteractionListeners.get(prevInteraction.uniqueId)?.collisionCallback(target.touchMesh1);
+
+                        if (nowGrabbing) {
+                            this._nearInteractionListeners.get(prevInteraction.uniqueId)?.grabStartCallback(target.touchMesh1);
+                            target.isGrabbing = true;
+                        }
+                    }
+                    else {
+                        this._nearInteractionListeners.get(prevInteraction.uniqueId)?.collisionExitCallback(target.touchMesh1);
+                        target.isTouching = false;
+                    }
                 }
             }
 
             // find any new interactions
-            this._nearInteractionListeners.forEach((interactionListener) => {
-                if (interactionListener.mesh.intersectsMesh(target.touchMesh)) {
-                    interactionListener.collisionCallback(target.touchMesh);
-                    target.targetMesh = interactionListener.mesh;
-                }
-            });
+            if (!target.isGrabbing && !target.isTouching) {
+                this._nearInteractionListeners.forEach((interactionListener) => {
+                    if (interactionListener.mesh.intersectsMesh(target.touchMesh1)) {
+                        interactionListener.collisionCallback(target.touchMesh1);
+                        target.targetMesh = interactionListener.mesh;
+                        target.isTouching = true;
+
+                        if (nowGrabbing) {
+                            interactionListener.grabStartCallback(target.touchMesh1);
+                        }
+                    }
+                });
+            }
+
+            if (!target.isGrabbing && !target.isTouching && prevInteraction) {
+                target.targetMesh = null;
+            }
         });
     }
 }

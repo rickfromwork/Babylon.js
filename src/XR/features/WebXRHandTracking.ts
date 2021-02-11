@@ -302,7 +302,7 @@ export class WebXRHand implements IDisposable {
 
         if (this._sceneForCollision) {
             // will this work, given the mesh is not in the same scene?
-            this._sceneForCollision._registerTouchInputMesh(this.trackedMeshes.get("index-finger-tip")!);
+            this._sceneForCollision._registerTouchInputMesh(this.trackedMeshes.get("index-finger-tip")!, this.trackedMeshes.get("thumb-tip")!);
         }
     }
 
