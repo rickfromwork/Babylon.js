@@ -323,6 +323,9 @@ export class TouchButton3D extends Button3D {
                         else if (isLower(this._frontOffset)) {
                             this._updateButtonState(uniqueId, ButtonState.Press, pointOnButton);
                         }
+                        else {
+                            this._updateButtonState(uniqueId, ButtonState.Hover, pointOnButton);
+                        }
 
                         break;
                     case ButtonState.Press:
@@ -331,6 +334,9 @@ export class TouchButton3D extends Button3D {
                         }
                         else if (isLower(this._pushThroughBackOffset)) {
                             this._updateButtonState(uniqueId, ButtonState.None, pointOnButton);
+                        }
+                        else {
+                            this._updateButtonState(uniqueId, ButtonState.Press, pointOnButton);
                         }
 
                         break;
